@@ -3,6 +3,7 @@
 import subprocess
 import time
 import logging
+import sys
 from typing import Generator, Dict, List
 from contextlib import contextmanager
 
@@ -45,17 +46,14 @@ TestingSessionLocal = get_sessionmaker(engine=test_engine)
 # ======================================================================================
 def create_fake_user() -> Dict[str, str]:
     """
-    Generate a dictionary of fake user data for testing.
-
-    Returns:
-        A dict containing user fields with fake data.
+    Generate fake user data with a securely hashed password.
     """
     return {
         "first_name": fake.first_name(),
         "last_name": fake.last_name(),
-        "email": fake.unique.email(),  # Ensure uniqueness where necessary
+        "email": fake.unique.email(),
         "username": fake.unique.user_name(),
-        "password": fake.password(length=12)
+        "password_hash": User.hash_password(fake.password(length=12))
     }
 
 @contextmanager
@@ -220,8 +218,14 @@ def fastapi_server():
 
     try:
         process = subprocess.Popen(
-            ['python', 'main.py'],
-            stdout=subprocess.PIPE,
+            [
+            sys.executable,
+            "-m", "uvicorn",
+            "main:app",
+            "--host", "127.0.0.1",
+            "--port", "8000"
+            ],
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE
         )
         if not wait_for_server(server_url, timeout=30):
